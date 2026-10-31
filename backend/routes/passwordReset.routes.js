@@ -93,10 +93,16 @@ router.post(
       user.resetOTPVerified = false;
       await user.save();
 
-      // Send OTP via SMTP asynchronously (non-blocking for instant response)
-      sendOtpEmail(user.email, otp, 5).catch((err) => {
-        console.error('[EmailService] Background reset OTP delivery failed:', err.message);
-      });
+      // Send OTP via email
+      try {
+        await sendOtpEmail(user.email, otp, 5);
+      } catch (emailErr) {
+        console.error('[PasswordReset] Failed to send reset OTP email:', emailErr.message);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Failed to send OTP email. Please try again later.'
+        });
+      }
 
       return res.status(200).json({
         status: 'success',

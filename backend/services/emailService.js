@@ -98,47 +98,52 @@ const getTransporter = async () => {
  * @param {string} purpose
  */
 export const sendOtpEmail = async (toEmail, otp, expiryMinutes = 5, purpose = 'Password Reset') => {
-  try {
-    const isRegistration = purpose.toLowerCase().includes('register') || purpose.toLowerCase().includes('verification');
-    const subject = isRegistration ? 'CampusHub Account Registration Verification' : 'CampusHub Password Reset';
-    const heading = isRegistration ? 'Verify Your Email Address' : 'CampusHub Password Reset';
-    const message = isRegistration
-      ? 'Thank you for joining CampusHub! Your verification code (OTP) for completing your registration is:'
-      : 'Your OTP for resetting your CampusHub password is:';
+  const isRegistration = purpose.toLowerCase().includes('register') || purpose.toLowerCase().includes('verification');
+  const subject = isRegistration ? 'CampusHub Account Registration Verification' : 'CampusHub Password Reset';
+  const heading = isRegistration ? 'Verify Your Email Address' : 'CampusHub Password Reset';
+  const message = isRegistration
+    ? 'Thank you for joining CampusHub! Your verification code (OTP) for completing your registration is:'
+    : 'Your OTP for resetting your CampusHub password is:';
 
-    const transporter = await getTransporter();
-    const mailOptions = {
-      from: process.env.SMTP_FROM || '"CampusHub" <no-reply@campushub.edu>',
-      to: toEmail,
-      subject,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
-          <h2 style="color: #0d6efd; margin: 0 0 20px 0; font-size: 22px; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">${heading}</h2>
-          <div style="color: #333333; line-height: 1.6; font-size: 15px;">
-            <p>${message}</p>
-            <div style="margin: 25px 0; font-size: 32px; font-weight: bold; color: #0d6efd; letter-spacing: 4px; text-align: center; background: #f0f7ff; padding: 15px; border-radius: 8px;">
-              ${otp}
-            </div>
-            <p>This verification code will expire in <strong>${expiryMinutes} minutes</strong>.</p>
-            <p style="color: #666666; font-size: 13px; margin-top: 20px;">If you did not request this code, please ignore this email.</p>
+  const transporter = await getTransporter();
+  const senderEmail = process.env.EMAIL_USER || process.env.SMTP_USER || 'no-reply@campushub.edu';
+
+  const mailOptions = {
+    from: `"CampusHub" <${senderEmail}>`,
+    to: toEmail,
+    subject,
+    text: `Your CampusHub OTP verification code is: ${otp}. This code will expire in ${expiryMinutes} minutes. If you did not request this code, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
+        <h2 style="color: #0d6efd; margin: 0 0 20px 0; font-size: 22px; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">${heading}</h2>
+        <div style="color: #333333; line-height: 1.6; font-size: 15px;">
+          <p>${message}</p>
+          <div style="margin: 25px 0; font-size: 32px; font-weight: bold; color: #0d6efd; letter-spacing: 4px; text-align: center; background: #f0f7ff; padding: 15px; border-radius: 8px;">
+            ${otp}
           </div>
+          <p>This verification code will expire in <strong>${expiryMinutes} minutes</strong>.</p>
+          <p style="color: #666666; font-size: 13px; margin-top: 20px;">If you did not request this code, please ignore this email.</p>
         </div>
-      `
-    };
+      </div>
+    `
+  };
 
+  try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`OTP (${purpose}) sent successfully to ${toEmail}`);
+    console.log(`[EmailService] OTP (${purpose}) sent successfully to ${toEmail}. MessageId: ${info.messageId}`);
 
     // If using dynamic test account, output preview details to the console
-    if (testAccount && transporter.options.auth.user === testAccount.user) {
+    if (testAccount && transporter.options?.auth?.user === testAccount.user) {
       console.log(`\n==================================================`);
       console.log(`📬 [MOCK EMAIL] OTP Sent to: ${toEmail}`);
       console.log(`🔑 Verification code: ${otp}`);
       console.log(`🔗 Click to view preview: ${nodemailer.getTestMessageUrl(info)}`);
       console.log(`==================================================\n`);
     }
+    return info;
   } catch (error) {
-    console.error('Failed to send OTP email:', error.message);
+    console.error(`[EmailService] Failed to send OTP to ${toEmail}:`, error.message);
+    throw error;
   }
 };
 
