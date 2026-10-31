@@ -1,29 +1,43 @@
 import nodemailer from 'nodemailer';
 
 let testAccount = null;
+let cachedTransporter = null;
 
 /**
  * Helper to retrieve a nodemailer transporter.
- * If credentials are provided in .env (either EMAIL_USER or SMTP_USER), it uses them.
- * Otherwise, it dynamically creates a temporary test account on Ethereal.email.
+ * Caches the transporter and enables connection pooling to dramatically speed up email delivery.
  */
 const getTransporter = async () => {
+  if (cachedTransporter) {
+    return cachedTransporter;
+  }
+
   const emailUser = process.env.EMAIL_USER || process.env.SMTP_USER;
   const emailPassword = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
 
   if (emailUser && emailPassword) {
+    // If using Gmail, use optimized direct Gmail transport with persistent connection pooling
+    if (emailUser.includes('gmail.com')) {
+      cachedTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPassword,
+        },
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
+        rateDelta: 1000,
+        rateLimit: 5
+      });
+      return cachedTransporter;
+    }
+
     let host = process.env.SMTP_HOST || 'smtp.ethereal.email';
     let port = parseInt(process.env.SMTP_PORT) || 587;
     let secure = port === 465;
 
-    // Auto-detect Gmail to prevent routing to Ethereal if SMTP_HOST is unchanged
-    if (emailUser.includes('gmail.com') && host === 'smtp.ethereal.email') {
-      host = 'smtp.gmail.com';
-      port = 587;
-      secure = false;
-    }
-
-    return nodemailer.createTransport({
+    cachedTransporter = nodemailer.createTransport({
       host,
       port,
       secure,
@@ -31,7 +45,10 @@ const getTransporter = async () => {
         user: emailUser,
         pass: emailPassword,
       },
+      pool: true,
+      maxConnections: 5
     });
+    return cachedTransporter;
   }
 
   // Create temporary Ethereal account if no env credentials found

@@ -93,8 +93,10 @@ router.post(
       user.resetOTPVerified = false;
       await user.save();
 
-      // Send OTP via SMTP fallback (5-minute expiry)
-      await sendOtpEmail(user.email, otp, 5);
+      // Send OTP via SMTP asynchronously (non-blocking for instant response)
+      sendOtpEmail(user.email, otp, 5).catch((err) => {
+        console.error('[EmailService] Background reset OTP delivery failed:', err.message);
+      });
 
       return res.status(200).json({
         status: 'success',

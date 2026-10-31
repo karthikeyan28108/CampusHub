@@ -78,8 +78,10 @@ router.post('/register-send-otp', async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // 5. Send OTP via email
-    await sendOtpEmail(cleanEmail, otp, 5, 'Registration Verification');
+    // 5. Send OTP via email asynchronously (non-blocking for instant UI response)
+    sendOtpEmail(cleanEmail, otp, 5, 'Registration Verification').catch((err) => {
+      console.error('[EmailService] Background registration OTP delivery failed:', err.message);
+    });
 
     return res.status(200).json({
       status: 'success',
