@@ -1,0 +1,4 @@
+rollNumber,fullName,email,initialPassword
+21CS001,Alice Student,student@campushub.edu,Password@123
+21CS002,Bob Faculty,bob@campushub.edu,Password@123
+21CS042,Alice Integration,student_integration@campushub.com,Password@123
