@@ -33,9 +33,7 @@ export const initializeSingleAdmin = async () => {
         department: 'Administration',
         isActive: true
       });
-      console.log(`[Admin] Single Admin account created successfully!`);
-      console.log(`[Admin] Username/Email: ${adminEmail}`);
-      console.log(`[Admin] Initial Password: ${defaultPassword}`);
+      console.log(`[Admin] Single Admin account initialized successfully (${adminEmail}).`);
     }
 
     // Strict 1-Admin Policy: Ensure no other user holds the 'admin' role
