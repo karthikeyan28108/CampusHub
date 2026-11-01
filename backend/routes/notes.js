@@ -22,6 +22,16 @@ router.post('/', verifyToken, requireRole('faculty', 'admin'), upload.single('fi
       });
     }
 
+    // Pre-read file buffer before uploadFileToStorage unlinks the local temporary file
+    let fileBuffer = null;
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      try {
+        fileBuffer = await fs.promises.readFile(req.file.path);
+      } catch (_) {}
+    } else if (req.file?.buffer) {
+      fileBuffer = req.file.buffer;
+    }
+
     // Upload to Cloudinary or get local fallback path
     const uploadResult = await uploadFileToStorage(req.file);
 
@@ -40,8 +50,8 @@ router.post('/', verifyToken, requireRole('faculty', 'admin'), upload.single('fi
     // Populate uploadedBy info
     const populatedNote = await Note.findById(note._id).populate('uploadedBy', 'name role email');
 
-    // Asynchronously index the note in the background without blocking the response
-    indexNote(note._id).catch((indexingError) => {
+    // Asynchronously index the note using preloaded buffer (immune to Cloudinary access restrictions)
+    indexNote(note._id, fileBuffer).catch((indexingError) => {
       console.error(`[Background Indexing Error] Note ${note._id}:`, indexingError.message);
     });
 

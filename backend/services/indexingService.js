@@ -118,8 +118,9 @@ export const extractTextFromBuffer = async (buffer, fileType = '', filename = ''
 /**
  * Index a single Note into KnowledgeChunks
  * @param {string|mongoose.Types.ObjectId} noteId
+ * @param {Buffer|null} [preloadedBuffer=null]
  */
-export const indexNote = async (noteId) => {
+export const indexNote = async (noteId, preloadedBuffer = null) => {
   try {
     console.log(`[RAG Indexer] Starting indexing for noteId: ${noteId}`);
     const note = await Note.findById(noteId).populate('uploadedBy', 'name role');
@@ -128,12 +129,12 @@ export const indexNote = async (noteId) => {
       return { success: false, reason: 'Note not found' };
     }
 
-    if (!note.fileUrl) {
+    if (!preloadedBuffer && !note.fileUrl) {
       console.warn(`[RAG Indexer] Note ${noteId} has no fileUrl`);
       return { success: false, reason: 'No fileUrl' };
     }
 
-    const buffer = await fetchFileBuffer(note.fileUrl);
+    const buffer = preloadedBuffer || await fetchFileBuffer(note.fileUrl);
     const extractedText = await extractTextFromBuffer(buffer, note.fileType, note.fileUrl);
 
     if (!extractedText || extractedText.trim().length === 0) {
