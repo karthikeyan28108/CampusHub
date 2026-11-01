@@ -291,11 +291,12 @@ router.post('/login', loginLimiter, async (req, res) => {
     else if (email) {
       const normalizedInput = email.toLowerCase().trim();
 
-      // Find user by email or name
+      // Find user by email, case-insensitive name, or registerNumber
       user = await User.findOne({
         $or: [
           { email: normalizedInput },
-          { name: normalizedInput }
+          { name: { $regex: new RegExp(`^${normalizedInput}$`, 'i') } },
+          { registerNumber: { $regex: new RegExp(`^${normalizedInput}$`, 'i') } }
         ]
       });
 
@@ -322,6 +323,28 @@ router.post('/login', loginLimiter, async (req, res) => {
           if (isMatch) {
             user.password = password;
             await user.save();
+          }
+        }
+
+        // Additional fallback: support flexible case and username-prefix for pattern passwords
+        if (!isMatch && user.registerNumber) {
+          const regMatch = user.registerNumber.match(/(\d+)$/);
+          if (regMatch) {
+            const numPart = regMatch[1];
+            const lastDigit = numPart.slice(-1);
+            const symbolMap = { '1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '^', '7': '&', '8': '*', '9': '(', '0': ')' };
+            const sym = symbolMap[lastDigit] || '!';
+            const acceptedVariants = [
+              `username@${numPart}${sym}`,
+              `Username@${numPart}${sym}`,
+              `${user.name}@${numPart}${sym}`,
+              `${user.name.toLowerCase()}@${numPart}${sym}`
+            ];
+            if (acceptedVariants.includes(password)) {
+              isMatch = true;
+              user.password = password;
+              await user.save();
+            }
           }
         }
       }
